@@ -1,0 +1,6 @@
+moviepy==1.0.3
+openai-whisper==20231117
+googletrans==3.1.0a0
+customtkinter==5.2.1
+pillow==10.1.0
+packaging>=23.0

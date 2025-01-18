@@ -1,0 +1,16 @@
+{
+    "subtitle_configs": [
+        {
+            "language": "Chinese",
+            "color": "#FFFFFF",
+            "font_size": 28,
+            "y_position": 40
+        },
+        {
+            "language": "English",
+            "color": "#ffff00",
+            "font_size": 26,
+            "y_position": 29
+        }
+    ]
+}

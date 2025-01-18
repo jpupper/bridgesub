@@ -1,0 +1,32 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environment
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+
+# Media files
+*.mp4
+*.png
+*.jpg
+*.jpeg
+# Permitir imágenes específicas de la interfaz
+!guiimagen1.png
+!imagen2.png
+!test.png
+
+# Exported files
+export/
+
+# Environment variables
+.env
+
+# Windows
+Thumbs.db
+desktop.ini
