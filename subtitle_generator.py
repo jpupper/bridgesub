@@ -25,17 +25,19 @@ APP_TEXTS = {
         'TEXT_ADD_SUBTITLE': "Agregar subtitulo",
         'TEXT_LANGUAGE': "Idioma",
         'TEXT_LANGUAGE_N': "idioma {}",
-        'TEXT_COLOR': "color",
-        'TEXT_SIZE': "tamaño",
+        'TEXT_COLOR': "Color",
+        'TEXT_SIZE': "Tamaño",
         'TEXT_Y_POSITION': "Posicion Y",
         'TEXT_OPEN_PREVIEW': "Abrir previsualizador",
-        'TEXT_GENERATE_SUBTITLES': "generar subtitulos",
-        'TEXT_RESOLUTION': "resolucion",
+        'TEXT_GENERATE_SUBTITLES': "Generar subtitulos",
+        'TEXT_RESOLUTION': "Resolucion",
         'TEXT_UPDATE': "Actualizar",
         'TEXT_NO_VIDEO': "No hay video cargado",
         'TEXT_RESOLUTION_LABEL': "Resolución: ",
         'TEXT_SIZE_LABEL': "Tamaño: ",
-        'TEXT_DURATION_LABEL': "Duración: "
+        'TEXT_DURATION_LABEL': "Duración: ",
+        'TEXT_BORDER_COLOR': "Color del borde",
+        'TEXT_BORDER_SIZE': "Tamaño del borde"
     },
     # English
     1: {
@@ -55,7 +57,9 @@ APP_TEXTS = {
         'TEXT_NO_VIDEO': "No video loaded",
         'TEXT_RESOLUTION_LABEL': "Resolution: ",
         'TEXT_SIZE_LABEL': "Size: ",
-        'TEXT_DURATION_LABEL': "Duration: "
+        'TEXT_DURATION_LABEL': "Duration: ",
+        'TEXT_BORDER_COLOR': "Border color",
+        'TEXT_BORDER_SIZE': "Border size"
     },
     # Chinese
     2: {
@@ -75,7 +79,9 @@ APP_TEXTS = {
         'TEXT_NO_VIDEO': "未加载视频",
         'TEXT_RESOLUTION_LABEL': "分辨率：",
         'TEXT_SIZE_LABEL': "大小：",
-        'TEXT_DURATION_LABEL': "持续时间："
+        'TEXT_DURATION_LABEL': "持续时间：",
+        'TEXT_BORDER_COLOR': "边框颜色",
+        'TEXT_BORDER_SIZE': "边框大小"
     }
 }
 
@@ -85,6 +91,7 @@ def initialize_interface_texts():
     global TEXT_LANGUAGE, TEXT_LANGUAGE_N, TEXT_COLOR, TEXT_SIZE, TEXT_Y_POSITION
     global TEXT_OPEN_PREVIEW, TEXT_GENERATE_SUBTITLES, TEXT_RESOLUTION, TEXT_UPDATE
     global TEXT_NO_VIDEO, TEXT_RESOLUTION_LABEL, TEXT_SIZE_LABEL, TEXT_DURATION_LABEL
+    global TEXT_BORDER_COLOR, TEXT_BORDER_SIZE
     
     selected_texts = APP_TEXTS[lenguajeSelect]
     
@@ -105,6 +112,8 @@ def initialize_interface_texts():
     TEXT_RESOLUTION_LABEL = selected_texts['TEXT_RESOLUTION_LABEL']
     TEXT_SIZE_LABEL = selected_texts['TEXT_SIZE_LABEL']
     TEXT_DURATION_LABEL = selected_texts['TEXT_DURATION_LABEL']
+    TEXT_BORDER_COLOR = selected_texts['TEXT_BORDER_COLOR']
+    TEXT_BORDER_SIZE = selected_texts['TEXT_BORDER_SIZE']
 
 # Inicializar los textos al cargar el módulo
 initialize_interface_texts()
@@ -117,11 +126,15 @@ MAIN_WINDOW_HEIGHT = 600
 PREVIEW_WINDOW_SCREEN_RATIO = 0.6  # 60% del tamaño de la pantalla
 
 # Subtitle positioning and styling
-SUBTITLE_Y_MARGIN = 250  # Margen en píxeles para los subtítulos
+SUBTITLE_Y_MARGIN = -200  # Margen en píxeles para los subtítulos
 SUBTITLE_DEFAULT_FONTSIZE = 35
 SUBTITLE_MIN_FONTSIZE = 20
-SUBTITLE_MAX_FONTSIZE = 60
+SUBTITLE_MAX_FONTSIZE = 100
 SLIDER_WIDTH = 200  # Ancho de los sliders en píxeles
+
+# Font size scaling factors
+PREVIEW_FONT_SCALE = 1.0  # Factor de escala para la previsualización
+VIDEO_FONT_SCALE = 1.5    # Factor de escala para el video final
 
 # Configure MoviePy to use ImageMagick
 change_settings({"IMAGEMAGICK_BINARY": "magick"})
@@ -206,7 +219,7 @@ def format_timecode(seconds):
     millisecs = int((seconds - int(seconds)) * 1000)
     return f"{hours:02d}:{minutes:02d}:{secs:02d},{millisecs:03d}"
 
-def create_text_clip(text, size, duration, font_path, font_size=35, color='white'):
+def create_text_clip(text, size, duration, font_path, font_size=35, color='white', border_color='black', border_size=2):
     """Create a text clip using PIL for better CJK support"""
     # Create a temporary PIL image
     w, h = size
@@ -285,7 +298,14 @@ def create_text_clip(text, size, duration, font_path, font_size=35, color='white
         text_width = bbox[2] - bbox[0]
         x = (w - text_width) // 2
         
-        # Draw the line
+        # Draw the border by offsetting text in multiple directions
+        if border_size > 0:
+            for dx in range(-border_size, border_size + 1):
+                for dy in range(-border_size, border_size + 1):
+                    if dx != 0 or dy != 0:  # Skip the center position
+                        draw.text((x + dx, y + dy), line, font=font, fill=border_color)
+        
+        # Draw the main text
         draw.text((x, y), line, font=font, fill=color)
         y += line_spacing
     
@@ -421,6 +441,10 @@ class PreviewWindow(ctk.CTkToplevel):
         canvas_width = self.canvas.winfo_width()
         canvas_height = self.canvas.winfo_height()
         
+        # Get video dimensions
+        video_width = int(self.width_var.get())
+        video_height = int(self.height_var.get())
+        
         # Draw black background and preview area
         self.update_canvas_size()
         
@@ -435,6 +459,8 @@ class PreviewWindow(ctk.CTkToplevel):
             color = config_data['color']
             font_size = config_data['font_size']
             y_position = config_data['y_position']
+            border_color = config_data['border_color']
+            border_size = config_data['border_size']
             
             # Get appropriate font for language
             language_name = language.split(' (')[0]  # Remove parentheses part
@@ -459,18 +485,35 @@ class PreviewWindow(ctk.CTkToplevel):
             text = SAMPLE_TEXTS.get(language_name, "This is a sample text")
             
             # Calculate Y position
-            # Cuando y_position es 0, y debe ser canvas_height - margin (abajo con margen)
-            # Cuando y_position es 100, y debe ser margin (arriba con margen)
-            margin = SUBTITLE_Y_MARGIN  # Margen similar al que usa create_text_clip
+            margin = SUBTITLE_Y_MARGIN * (canvas_height / video_height)  # Scale margin according to preview size
             y = (canvas_height - margin) * (1 - y_position / 100) + margin
             
-            # Create text on canvas
+            # Scale font size according to preview size vs video size
+            scale_factor = (canvas_height / video_height)  # Use height as reference
+            scaled_font_size = int(font_size * scale_factor)
+            scaled_border_size = int(border_size * scale_factor)
+            
+            # Draw border by creating multiple offset text items
+            if border_size > 0:
+                for dx in range(-scaled_border_size, scaled_border_size + 1):
+                    for dy in range(-scaled_border_size, scaled_border_size + 1):
+                        if dx != 0 or dy != 0:  # Skip the center position
+                            self.canvas.create_text(
+                                canvas_width / 2 + dx,  # Center horizontally + offset
+                                y + dy,  # Y position + offset
+                                text=text,
+                                fill=border_color,
+                                font=("Arial", scaled_font_size),
+                                anchor="s"  # Bottom anchor
+                            )
+            
+            # Create text on canvas (main text on top of border)
             self.canvas.create_text(
                 canvas_width / 2,  # Center horizontally
                 y,
                 text=text,
                 fill=color,
-                font=("Arial", font_size),
+                font=("Arial", scaled_font_size),
                 anchor="s"  # Bottom anchor
             )
     
@@ -558,18 +601,17 @@ class SubtitleConfigFrame(ctk.CTkFrame):
     def __init__(self, master, available_languages, available_colors, index, delete_callback):
         super().__init__(master)
         self.configure(fg_color="#E0E0E0")
-        self.grid(row=index, column=0, padx=20, pady=10)
+        self.grid(row=index, column=0, padx=20, pady=10, sticky="ew")
         self.index = index
 
         # Container principal centrado
-        main_container = ctk.CTkFrame(self, fg_color="transparent", width=400)
-        main_container.grid(row=0, column=0)
-        main_container.grid_propagate(False)
-        main_container.grid_columnconfigure(1, weight=1)
+        main_container = ctk.CTkFrame(self, fg_color="transparent")
+        main_container.grid(row=0, column=0, sticky="ew", padx=5, pady=5)
+        main_container.grid_columnconfigure(0, weight=1)
 
         # Header con título y botón de eliminar
         header_frame = ctk.CTkFrame(main_container, fg_color="transparent")
-        header_frame.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(5,10))
+        header_frame.grid(row=0, column=0, sticky="ew", pady=(5,10))
         header_frame.grid_columnconfigure(0, weight=1)
 
         title_label = ctk.CTkLabel(header_frame, text=TEXT_LANGUAGE_N.format(index + 1), font=("Segoe UI", 12, "bold"))
@@ -586,11 +628,12 @@ class SubtitleConfigFrame(ctk.CTkFrame):
 
         # Contenedor para los controles
         controls_frame = ctk.CTkFrame(main_container, fg_color="transparent")
-        controls_frame.grid(row=1, column=0, padx=10, pady=5)
+        controls_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=5)
+        controls_frame.grid_columnconfigure(1, weight=1)
 
         # Language selection
-        language_label = ctk.CTkLabel(controls_frame, text=TEXT_LANGUAGE+":", anchor="e", width=80)
-        language_label.grid(row=0, column=0, padx=(0,10), pady=5)
+        language_label = ctk.CTkLabel(controls_frame, text=TEXT_LANGUAGE+":", anchor="e", width=120)
+        language_label.grid(row=0, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.language_var = ctk.StringVar(value=available_languages[0])
         self.language_menu = ctk.CTkOptionMenu(
@@ -600,11 +643,11 @@ class SubtitleConfigFrame(ctk.CTkFrame):
             command=self.on_config_change,
             width=280
         )
-        self.language_menu.grid(row=0, column=1, pady=5)
+        self.language_menu.grid(row=0, column=1, pady=5, sticky="ew")
 
         # Color selection
-        color_label = ctk.CTkLabel(controls_frame, text=TEXT_COLOR+":", anchor="e", width=80)
-        color_label.grid(row=1, column=0, padx=(0,10), pady=5)
+        color_label = ctk.CTkLabel(controls_frame, text=TEXT_COLOR+":", anchor="e", width=120)
+        color_label.grid(row=1, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.color_var = ctk.StringVar(value="#FFFFFF")
         self.color_button = ctk.CTkButton(
@@ -615,11 +658,11 @@ class SubtitleConfigFrame(ctk.CTkFrame):
             fg_color=self.color_var.get(),
             command=self.choose_color
         )
-        self.color_button.grid(row=1, column=1, pady=5)
+        self.color_button.grid(row=1, column=1, pady=5, sticky="ew")
 
         # Font size
-        fontsize_label = ctk.CTkLabel(controls_frame, text=TEXT_SIZE+":", anchor="e", width=80)
-        fontsize_label.grid(row=2, column=0, padx=(0,10), pady=5)
+        fontsize_label = ctk.CTkLabel(controls_frame, text=TEXT_SIZE+":", anchor="e", width=120)
+        fontsize_label.grid(row=2, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.fontsize_var = ctk.IntVar(value=SUBTITLE_DEFAULT_FONTSIZE)
         self.fontsize_slider = ctk.CTkSlider(
@@ -631,11 +674,11 @@ class SubtitleConfigFrame(ctk.CTkFrame):
             command=self.on_config_change,
             width=280
         )
-        self.fontsize_slider.grid(row=2, column=1, pady=5)
+        self.fontsize_slider.grid(row=2, column=1, pady=5, sticky="ew")
 
         # Y position
-        ypos_label = ctk.CTkLabel(controls_frame, text=TEXT_Y_POSITION+":", anchor="e", width=80)
-        ypos_label.grid(row=3, column=0, padx=(0,10), pady=5)
+        ypos_label = ctk.CTkLabel(controls_frame, text=TEXT_Y_POSITION+":", anchor="e", width=120)
+        ypos_label.grid(row=3, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.ypos_var = ctk.IntVar(value=40)
         self.ypos_slider = ctk.CTkSlider(
@@ -647,14 +690,47 @@ class SubtitleConfigFrame(ctk.CTkFrame):
             command=self.on_config_change,
             width=280
         )
-        self.ypos_slider.grid(row=3, column=1, pady=5)
+        self.ypos_slider.grid(row=3, column=1, pady=5, sticky="ew")
 
+        # Border color
+        border_color_label = ctk.CTkLabel(controls_frame, text=TEXT_BORDER_COLOR+":", anchor="e", width=120)
+        border_color_label.grid(row=4, column=0, padx=(0,10), pady=5, sticky="e")
+        
+        self.border_color_var = ctk.StringVar(value="#000000")
+        self.border_color_button = ctk.CTkButton(
+            controls_frame,
+            text="",
+            width=280,
+            height=30,
+            fg_color=self.border_color_var.get(),
+            command=self.choose_border_color
+        )
+        self.border_color_button.grid(row=4, column=1, pady=5, sticky="ew")
+
+        # Border size
+        border_size_label = ctk.CTkLabel(controls_frame, text=TEXT_BORDER_SIZE+":", anchor="e", width=120)
+        border_size_label.grid(row=5, column=0, padx=(0,10), pady=5, sticky="e")
+        
+        self.border_size_var = ctk.IntVar(value=2)
+        self.border_size_slider = ctk.CTkSlider(
+            controls_frame,
+            from_=0,
+            to=5,
+            number_of_steps=50,
+            variable=self.border_size_var,
+            command=self.on_config_change,
+            width=280
+        )
+        self.border_size_slider.grid(row=5, column=1, pady=5, sticky="ew")
+    
     def get_config(self):
         return {
             "language": self.language_var.get(),
             "color": self.color_var.get(),
             "font_size": self.fontsize_var.get(),
-            "y_position": self.ypos_var.get()
+            "y_position": self.ypos_var.get(),
+            "border_color": self.border_color_var.get(),
+            "border_size": self.border_size_var.get()
         }
 
     def choose_color(self):
@@ -662,6 +738,13 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         if color[1]:  # color[1] contains the hex value
             self.color_var.set(color[1])
             self.color_button.configure(fg_color=color[1])
+            self.on_config_change()
+
+    def choose_border_color(self):
+        color = colorchooser.askcolor(color=self.border_color_var.get(), title="Elegir color del borde")
+        if color[1]:  # color[1] contains the hex value
+            self.border_color_var.set(color[1])
+            self.border_color_button.configure(fg_color=color[1])
             self.on_config_change()
 
     def on_config_change(self, *args):
@@ -789,6 +872,9 @@ class SubtitleGenerator(ctk.CTk):
                 config.grid(row=i, column=0, padx=10, pady=5)
     
     def load_video(self):
+        # Close preview window if it exists
+        self.close_preview()
+        
         filename = filedialog.askopenfilename(
             title="Seleccionar Video",
             filetypes=[
@@ -886,6 +972,9 @@ class SubtitleGenerator(ctk.CTk):
                 config.color_button.configure(fg_color=config_data['color'])  # Update button color
                 config.fontsize_var.set(config_data['font_size'])
                 config.ypos_var.set(config_data['y_position'])
+                config.border_color_var.set(config_data['border_color'])
+                config.border_color_button.configure(fg_color=config_data['border_color'])  # Update button color
+                config.border_size_var.set(config_data['border_size'])
             
             # Actualizar preview si existe
             if hasattr(self, 'preview_window'):
@@ -919,7 +1008,9 @@ class SubtitleGenerator(ctk.CTk):
                 'language': config.language_var.get(),
                 'color': config.color_var.get(),
                 'font_size': config.fontsize_var.get(),
-                'y_position': config.ypos_var.get()
+                'y_position': config.ypos_var.get(),
+                'border_color': config.border_color_var.get(),
+                'border_size': config.border_size_var.get()
             }
             workflow_data['subtitle_configs'].append(config_data)
         
@@ -1072,18 +1163,20 @@ class SubtitleGenerator(ctk.CTk):
                         # Create text clip
                         frame = create_text_clip(
                             text=text,
-                            size=(video.w, 200),  # Altura fija de 200px para el área de subtítulos
+                            size=(video.w, int(video.h * 0.3)),  # 30% de la altura del video para el área de texto
                             duration=end_time - start_time,
                             font_path=font_paths[config.language_var.get()],
-                            font_size=config.fontsize_var.get(),
-                            color=config.color_var.get()
+                            font_size=int(config.fontsize_var.get() * VIDEO_FONT_SCALE),
+                            color=config.color_var.get(),
+                            border_color=config.border_color_var.get(),
+                            border_size=config.border_size_var.get()
                         )
                         
                         # Calculate Y position (from bottom)
                         y_position = int((100 - config.ypos_var.get()) * video.h / 100)
                         
                         # Create subtitle clip
-                        txt_clip = (ImageClip(frame)
+                        txt_clip = (ImageClip(frame, transparent=True)
                                   .set_duration(end_time - start_time)
                                   .set_start(start_time)
                                   .set_position(('center', y_position)))
@@ -1149,7 +1242,9 @@ class SubtitleGenerator(ctk.CTk):
                     'language': config.language_var.get(),
                     'color': config.color_var.get(),
                     'fontsize': config.fontsize_var.get(),
-                    'ypos': config.ypos_var.get()
+                    'ypos': config.ypos_var.get(),
+                    'border_color': config.border_color_var.get(),
+                    'border_size': config.border_size_var.get()
                 }
                 saved_subtitle_configs.append(saved_config)
         
@@ -1203,6 +1298,9 @@ class SubtitleGenerator(ctk.CTk):
             current_config.color_var.set(config['color'])
             current_config.fontsize_var.set(config['fontsize'])
             current_config.ypos_var.set(config['ypos'])
+            current_config.border_color_var.set(config['border_color'])
+            current_config.border_color_button.configure(fg_color=config['border_color'])
+            current_config.border_size_var.set(config['border_size'])
             
             # Actualizar color del botón
             current_config.color_button.configure(fg_color=config['color'])
@@ -1354,6 +1452,12 @@ class SubtitleGenerator(ctk.CTk):
         # Status label
         self.status_label = ctk.CTkLabel(self, text="")
         self.status_label.grid(row=7, column=0, padx=10, pady=5)
+
+    def close_preview(self):
+        """Close the preview window if it exists"""
+        if hasattr(self, 'preview_window') and self.preview_window.winfo_exists():
+            self.preview_window.destroy()
+            delattr(self, 'preview_window')
 
 if __name__ == "__main__":
     app = SubtitleGenerator()
