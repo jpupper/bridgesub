@@ -1,10 +1,16 @@
 # SubBridge - Subtitle Generator
 
+*Read in other languages: [Español](README_es.md) | [中文](README_zh.md)*
+
 A desktop application for generating and customizing multilingual subtitles for your videos.
 
-![Main interface](guiimagen1.png)
-![Preview](imagen2.png)
-![Subtitle settings](test.png)
+<p align="center">
+  <img src="guiimagen1.png" width="600" alt="Main interface"/>
+</p>
+
+<p align="center">
+  <img src="imagen2.png" width="600" alt="Preview"/>
+</p>
 
 ## Features
 
@@ -115,4 +121,3 @@ The application supports subtitle generation and translation in over 50 language
    - Restart your computer after installing ImageMagick
 
 ---
-*Leer esto en [Español](README_es.md) | 用[中文](README_zh.md)阅读*

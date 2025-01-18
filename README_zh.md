@@ -1,10 +1,16 @@
 # SubBridge - 字幕生成器
 
+*其他语言版本：[English](README.md) | [Español](README_es.md)*
+
 一个用于为视频生成和自定义多语言字幕的桌面应用程序。
 
-![主界面](guiimagen1.png)
-![预览](imagen2.png)
-![字幕设置](test.png)
+<p align="center">
+  <img src="guiimagen1.png" width="600" alt="主界面"/>
+</p>
+
+<p align="center">
+  <img src="imagen2.png" width="600" alt="预览"/>
+</p>
 
 ## 功能特点
 
@@ -115,4 +121,3 @@ python subtitle_generator.py
    - 安装 ImageMagick 后重启计算机
 
 ---
-*Read this in [English](README.md) | Leer esto en [Español](README_es.md)*
