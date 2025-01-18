@@ -2,6 +2,10 @@
 
 A desktop application for generating and customizing multilingual subtitles for your videos.
 
+![Main interface](guiimagen1.png)
+![Preview](imagen2.png)
+![Subtitle settings](test.png)
+
 ## Features
 
 - User-friendly graphical interface
@@ -14,6 +18,17 @@ A desktop application for generating and customizing multilingual subtitles for 
   - Vertical position
 - Real-time preview
 - Save and load workflow configurations
+
+## Technologies Used
+
+- **Python 3.10+**: Base programming language
+- **Main packages**:
+  - `moviepy (1.0.3)`: Video processing
+  - `openai-whisper (20231117)`: AI-powered speech recognition
+  - `googletrans (3.1.0a0)`: Text translation
+  - `customtkinter (5.2.1)`: Modern GUI framework
+  - `pillow (10.1.0)`: Image processing
+  - `packaging (>=23.0)`: Dependency management
 
 ## Prerequisites
 
@@ -99,14 +114,5 @@ The application supports subtitle generation and translation in over 50 language
    - Verify that the "Install legacy utilities" option is checked
    - Restart your computer after installing ImageMagick
 
-2. If subtitles don't appear:
-   - Verify that the video has audio
-   - Make sure the video format is supported (MP4, AVI, MOV)
-   - Check if the selected language model was downloaded correctly
-
-## System Requirements
-
-- Operating System: Windows 10 or higher
-- RAM: Minimum 8GB (16GB recommended for better performance)
-- Storage: At least 2GB free space for language models
-- GPU: Optional but recommended for faster processing
+---
+*Leer esto en [Español](README_es.md) | 用[中文](README_zh.md)阅读*
