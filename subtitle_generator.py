@@ -873,37 +873,49 @@ class SubtitleGenerator(ctk.CTk):
     
     def load_video(self):
         # Close preview window if it exists
-        self.close_preview()
+        if hasattr(self, 'preview_window') and self.preview_window.winfo_exists():
+            self.preview_window.destroy()
+            delattr(self, 'preview_window')
         
-        filename = filedialog.askopenfilename(
-            title="Seleccionar Video",
-            filetypes=[
-                ("Video files", "*.mp4 *.avi *.mkv *.mov"),
-                ("All files", "*.*")
-            ]
+        filetypes = (
+            ('Archivos de video', '*.mp4 *.avi *.mkv *.mov'),
+            ('Todos los archivos', '*.*')
         )
         
-        if filename:
+        video_path = filedialog.askopenfilename(
+            title='Selecciona un video',
+            filetypes=filetypes
+        )
+        
+        if video_path:
             try:
-                self.video_path = filename
+                self.video_path = video_path
                 # Load video to get dimensions
-                video = VideoFileClip(filename)
-                width, height = video.size
-                self.video_resolution = (width, height)  # Guardamos la resolución
+                clip = VideoFileClip(video_path)
+                width, height = clip.size
+                self.video_resolution = (width, height)
+                
+                # Mostrar información del video en consola
+                print("\n=== Información del Video ===")
+                print(f"Directorio: {os.path.dirname(video_path)}")
+                print(f"Archivo: {os.path.basename(video_path)}")
+                print(f"Resolución: {width}x{height}")
+                print(f"Duración: {clip.duration:.2f} segundos")
+                print("==========================\n")
                 
                 # Update video label with filename
-                self.video_label.configure(text=f"Video: {os.path.basename(filename)}")
+                self.video_label.configure(text=f"Video: {os.path.basename(video_path)}")
                 
                 # Update video info labels
                 self.resolution_label.configure(text=f"{TEXT_RESOLUTION_LABEL}{width}x{height}")
-                self.size_label.configure(text=f"{TEXT_SIZE_LABEL}{os.path.getsize(filename) / (1024 * 1024):.2f} MB")
-                self.duration_label.configure(text=f"{TEXT_DURATION_LABEL}{datetime.timedelta(seconds=int(video.duration))}")
+                self.size_label.configure(text=f"{TEXT_SIZE_LABEL}{os.path.getsize(video_path) / (1024 * 1024):.2f} MB")
+                self.duration_label.configure(text=f"{TEXT_DURATION_LABEL}{datetime.timedelta(seconds=int(clip.duration))}")
                 
-                video.close()
+                clip.close()
                 
                 # Update preview window resolution if it exists
-                if hasattr(self, 'preview_window') and self.preview_window.winfo_exists():
-                    print("Actualizando resolución del previsualizador")  # Debug
+                if hasattr(self, 'preview_window'):
+                    print("Actualizando resolución del previsualizador")
                     self.preview_window.set_resolution(width, height)
                     self.preview_window.width_var.set(str(width))
                     self.preview_window.height_var.set(str(height))
@@ -913,17 +925,17 @@ class SubtitleGenerator(ctk.CTk):
             except Exception as e:
                 messagebox.showerror("Error", f"Error al cargar el video: {str(e)}")
                 self.video_path = None
-                self.video_resolution = None  # Limpiamos la resolución si hay error
+                self.video_resolution = None
                 self.disable_controls()
-
+    
     def disable_controls(self):
         """Disable all controls when no video is loaded"""
         if hasattr(self, 'preview_btn'):
             self.preview_btn.configure(state="disabled")
         if hasattr(self, 'generate_btn'):
             self.generate_btn.configure(state="disabled")
-        if hasattr(self, 'add_btn'):
-            self.add_btn.configure(state="disabled")
+        if hasattr(self, 'generate_video_btn'):
+            self.generate_video_btn.configure(state="disabled")
 
     def enable_controls(self):
         """Enable all controls when a video is loaded"""
@@ -931,8 +943,8 @@ class SubtitleGenerator(ctk.CTk):
             self.preview_btn.configure(state="normal")
         if hasattr(self, 'generate_btn'):
             self.generate_btn.configure(state="normal")
-        if hasattr(self, 'add_btn'):
-            self.add_btn.configure(state="normal")
+        if hasattr(self, 'generate_video_btn'):
+            self.generate_video_btn.configure(state="normal")
 
     def refresh_workflows(self):
         workflow_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workflows")
@@ -1007,8 +1019,8 @@ class SubtitleGenerator(ctk.CTk):
             config_data = {
                 'language': config.language_var.get(),
                 'color': config.color_var.get(),
-                'font_size': config.fontsize_var.get(),
-                'y_position': config.ypos_var.get(),
+                'fontsize': config.fontsize_var.get(),
+                'ypos': config.ypos_var.get(),
                 'border_color': config.border_color_var.get(),
                 'border_size': config.border_size_var.get()
             }
@@ -1063,7 +1075,207 @@ class SubtitleGenerator(ctk.CTk):
         
         return output_path
 
+    def generate_subtitles_only(self, video_path):
+        """
+        Genera solo los subtítulos sin procesar el video
+        Returns: Lista de subtítulos y sus configuraciones
+        """
+        try:
+            print("\n=== Generando Subtítulos ===")
+            print(f"Video origen: {video_path}")
+            
+            # Cargar el modelo de whisper
+            model = whisper.load_model("base")
+            
+            # Transcribir el audio
+            print("Transcribiendo audio...")
+            result = model.transcribe(video_path)
+            detected_language = result["language"]
+            print(f"Idioma detectado: {detected_language}")
+            
+            # Mapeo de nombres de idiomas a códigos
+            language_codes = {
+                "English": "en",
+                "Chinese": "zh-cn",
+                "Spanish": "es",
+                "Español": "es",
+                "中文": "zh-cn"
+            }
+            
+            # Preparar los subtítulos para cada configuración
+            subtitles_data = []
+            
+            for config in self.subtitle_configs:
+                target_lang = config.language_var.get()
+                print(f"\nProcesando subtítulos para {target_lang}...")
+                
+                # Obtener el código de idioma correcto
+                target_lang_code = language_codes.get(target_lang)
+                if not target_lang_code:
+                    raise ValueError(f"Código de idioma no encontrado para: {target_lang}")
+                
+                if target_lang_code != detected_language:
+                    # Traducir si es necesario
+                    translator = Translator()
+                    segments = []
+                    for segment in result["segments"]:
+                        translated = translator.translate(
+                            segment["text"], 
+                            dest=target_lang_code
+                        ).text
+                        segments.append({
+                            "text": translated,
+                            "start": segment["start"],
+                            "end": segment["end"]
+                        })
+                else:
+                    segments = [
+                        {
+                            "text": segment["text"],
+                            "start": segment["start"],
+                            "end": segment["end"]
+                        }
+                        for segment in result["segments"]
+                    ]
+                
+                subtitles_data.append({
+                    "config": config,
+                    "segments": segments
+                })
+                
+                # Guardar SRT
+                video_name = os.path.splitext(os.path.basename(video_path))[0]
+                export_dir = "export"
+                if not os.path.exists(export_dir):
+                    os.makedirs(export_dir)
+                
+                srt_path = os.path.join(export_dir, f"{video_name}_{target_lang}.srt")
+                with open(srt_path, 'w', encoding='utf-8') as f:
+                    for i, segment in enumerate(segments, 1):
+                        f.write(f"{i}\n")
+                        f.write(f"{self.seconds_to_timecode(segment['start'])} --> {self.seconds_to_timecode(segment['end'])}\n")
+                        f.write(f"{segment['text']}\n\n")
+                
+                print(f"Subtítulos guardados en: {srt_path}")
+            
+            print("=== Generación Completada ===\n")
+            return subtitles_data, detected_language
+            
+        except Exception as e:
+            print(f"Error generando subtítulos: {str(e)}")
+            raise e
+
+    def check_existing_subtitles(self, video_path):
+        """
+        Verifica si existen subtítulos para el video en la carpeta export
+        Returns: 
+            - None si no hay subtítulos o no corresponden
+            - Lista de subtítulos y detected_language si existen y corresponden
+        """
+        try:
+            video_name = os.path.splitext(os.path.basename(video_path))[0]
+            export_dir = "export"
+            
+            print("\n=== Buscando Subtítulos Existentes ===")
+            print(f"Carpeta de búsqueda: {os.path.abspath(export_dir)}")
+            print(f"Nombre base del video: {video_name}")
+            
+            if not os.path.exists(export_dir):
+                print("La carpeta 'export' no existe")
+                return None, None
+            
+            existing_subtitles = []
+            
+            # Verificar que existan todos los archivos SRT necesarios
+            for config in self.subtitle_configs:
+                target_lang = config.language_var.get()
+                srt_filename = f"{video_name}_{target_lang}.srt"
+                srt_path = os.path.join(export_dir, srt_filename)
+                
+                print(f"\nBuscando subtítulos en {target_lang}:")
+                print(f"Archivo esperado: {srt_filename}")
+                
+                if not os.path.exists(srt_path):
+                    print(f"❌ No encontrado: {srt_path}")
+                    return None, None
+                
+                print(f"✓ Encontrado: {srt_path}")
+                
+                # Leer el archivo SRT
+                segments = []
+                with open(srt_path, 'r', encoding='utf-8') as srt_file:
+                    lines = srt_file.readlines()
+                    i = 0
+                    while i < len(lines):
+                        if lines[i].strip().isdigit():  # Número de subtítulo
+                            if i + 2 < len(lines):  # Asegurar que hay suficientes líneas
+                                # Parsear tiempo
+                                times = lines[i + 1].strip().split(' --> ')
+                                if len(times) == 2:
+                                    start = self.timecode_to_seconds(times[0])
+                                    end = self.timecode_to_seconds(times[1])
+                                    
+                                    # Obtener texto
+                                    text = lines[i + 2].strip()
+                                    segments.append({
+                                        "text": text,
+                                        "start": start,
+                                        "end": end
+                                    })
+                            i += 4  # Saltar al siguiente grupo
+                        else:
+                            i += 1
+                
+                existing_subtitles.append({
+                    "config": config,
+                    "segments": segments
+                })
+            
+            print("\n✓ Se encontraron todos los archivos de subtítulos necesarios")
+            print("=== Búsqueda Completada ===\n")
+            return existing_subtitles, "es"  # Asumimos español por defecto
+            
+        except Exception as e:
+            print(f"\n❌ Error verificando subtítulos: {str(e)}")
+            return None, None
+
     def generate_subtitles(self):
+        if not self.video_path:
+            messagebox.showerror("Error", "Por favor selecciona un video primero")
+            return
+
+        # Disable buttons during processing
+        self.disable_controls()
+        self.progress_bar.set(0)
+
+        try:
+            self.update_status("Generando subtítulos...")
+            subtitles_data, detected_language = self.generate_subtitles_only(self.video_path)
+            
+            self.progress_bar.set(1.0)
+            self.update_status("¡Subtítulos generados!")
+            
+            # Mostrar mensaje de éxito con las rutas de los archivos generados
+            srt_paths = []
+            for config_data in subtitles_data:
+                config = config_data["config"]
+                video_name = os.path.splitext(os.path.basename(self.video_path))[0]
+                srt_path = os.path.join("export", f"{video_name}_{config.language_var.get()}.srt")
+                srt_paths.append(srt_path)
+            
+            messagebox.showinfo("Éxito", 
+                              f"Archivos SRT generados en:\n" + "\n".join(srt_paths))
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Error al generar subtítulos: {str(e)}")
+            self.update_status("Error en el proceso")
+        
+        finally:
+            self.enable_controls()
+            self.progress_bar.set(0)
+            self.update_status("")
+
+    def generate_video(self):
         if not self.video_path:
             messagebox.showerror("Error", "Por favor selecciona un video primero")
             return
@@ -1075,32 +1287,30 @@ class SubtitleGenerator(ctk.CTk):
         # Start processing in a separate thread
         thread = threading.Thread(target=self.process_video)
         thread.start()
-
+    
     def process_video(self):
         try:
-            self.update_status("Transcribiendo audio...")
-            self.progress_bar.set(0.2)
-
-            # Load Whisper model
-            model = whisper.load_model("base")
+            self.update_status("Verificando subtítulos existentes...")
+            self.progress_bar.set(0.1)
             
-            # Transcribe audio with timestamps and detect language
-            result = model.transcribe(self.video_path, task="transcribe")
-            detected_language = result.get("language", "es")
+            # Verificar si existen subtítulos
+            existing_subtitles, detected_language = self.check_existing_subtitles(self.video_path)
             
-            self.update_status(f"Idioma detectado: {detected_language}")
+            if existing_subtitles:
+                print("\nUsando subtítulos existentes de la carpeta 'export'")
+                self.update_status("Usando subtítulos existentes...")
+                subtitles_data = existing_subtitles
+            else:
+                print("\nNo se encontraron subtítulos existentes. Generando nuevos subtítulos...")
+                self.update_status("Generando nuevos subtítulos...")
+                subtitles_data, detected_language = self.generate_subtitles_only(self.video_path)
+            
             self.progress_bar.set(0.3)
-            
-            # Get target languages
-            target_langs = [config.language_var.get() for config in self.subtitle_configs]
-            
-            # Initialize translators
-            translators = {lang: Translator() for lang in target_langs}
             
             # Load the video
             video = VideoFileClip(self.video_path)
             
-            self.update_status(f"Traduciendo de {detected_language} a {', '.join(target_langs)}...")
+            self.update_status(f"Procesando subtítulos...")
             self.progress_bar.set(0.4)
             
             # Process segments with timestamps
@@ -1111,8 +1321,11 @@ class SubtitleGenerator(ctk.CTk):
             
             # Define font paths based on languages
             font_paths = {}
-            for lang in target_langs:
-                language_name = lang.split(' (')[0]  # Remove parentheses part
+            for config_data in subtitles_data:
+                config = config_data["config"]
+                lang = config.language_var.get()
+                language_name = lang.split(' (')[0]
+                
                 if language_name in ['Chinese', 'Japanese', 'Korean']:
                     possible_fonts = ['MSYH.TTC', 'SIMHEI.TTF', 'SIMSUN.TTC', 'MALGUN.TTF', 'MEIRYO.TTC']
                 elif language_name in ['Arabic', 'Hebrew']:
@@ -1135,54 +1348,59 @@ class SubtitleGenerator(ctk.CTk):
             if not output_path:
                 return
 
-            # Generate SRT files
-            srt_paths = {}
-            for i, config in enumerate(self.subtitle_configs):
-                srt_path = os.path.splitext(output_path)[0] + f"_{config.language_var.get()}.srt"
-                with open(srt_path, 'w', encoding='utf-8') as srt_file:
-                    for j, segment in enumerate(result["segments"], 1):
-                        text = segment["text"].strip()
-                        
-                        # Always translate to target language if it's different from detected language
-                        if config.language_var.get() != detected_language:
-                            try:
-                                translation = translators[config.language_var.get()].translate(text, dest=self.available_languages[config.language_var.get()])
-                                text = translation.text
-                            except Exception as e:
-                                self.update_status(f"Error en traducción: {str(e)}")
-                                continue
-                        
-                        start_time = segment["start"]
-                        end_time = segment["end"]
-                        
-                        # Write to SRT file
-                        srt_file.write(f"{j}\n")
-                        srt_file.write(f"{format_timecode(start_time)} --> {format_timecode(end_time)}\n")
-                        srt_file.write(f"{text}\n\n")
-                        
-                        # Create text clip
-                        frame = create_text_clip(
-                            text=text,
-                            size=(video.w, int(video.h * 0.3)),  # 30% de la altura del video para el área de texto
-                            duration=end_time - start_time,
-                            font_path=font_paths[config.language_var.get()],
-                            font_size=int(config.fontsize_var.get() * VIDEO_FONT_SCALE),
-                            color=config.color_var.get(),
-                            border_color=config.border_color_var.get(),
-                            border_size=config.border_size_var.get()
-                        )
-                        
-                        # Calculate Y position (from bottom)
-                        y_position = int((100 - config.ypos_var.get()) * video.h / 100)
-                        
-                        # Create subtitle clip
-                        txt_clip = (ImageClip(frame, transparent=True)
-                                  .set_duration(end_time - start_time)
-                                  .set_start(start_time)
-                                  .set_position(('center', y_position)))
-                        
-                        subtitle_clips.append(txt_clip)
-                srt_paths[config.language_var.get()] = srt_path
+            # Si no existían los subtítulos, generarlos
+            if not existing_subtitles:
+                srt_paths = {}
+                for config_data in subtitles_data:
+                    config = config_data["config"]
+                    segments = config_data["segments"]
+                    
+                    video_name = os.path.splitext(os.path.basename(self.video_path))[0]
+                    export_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export")
+                    if not os.path.exists(export_dir):
+                        os.makedirs(export_dir)
+                    
+                    srt_path = os.path.join(export_dir, f"{video_name}_{config.language_var.get()}.srt")
+                    with open(srt_path, 'w', encoding='utf-8') as srt_file:
+                        for j, segment in enumerate(segments, 1):
+                            text = segment["text"]
+                            start_time = segment["start"]
+                            end_time = segment["end"]
+                            
+                            # Write to SRT file
+                            srt_file.write(f"{j}\n")
+                            srt_file.write(f"{self.seconds_to_timecode(start_time)} --> {self.seconds_to_timecode(end_time)}\n")
+                            srt_file.write(f"{text}\n\n")
+                    
+                    srt_paths[config.language_var.get()] = srt_path
+
+            # Crear clips de subtítulos
+            for config_data in subtitles_data:
+                config = config_data["config"]
+                segments = config_data["segments"]
+                
+                for segment in segments:
+                    frame = create_text_clip(
+                        text=segment["text"],
+                        size=(video.w, int(video.h * 0.3)),
+                        duration=segment["end"] - segment["start"],
+                        font_path=font_paths[config.language_var.get()],
+                        font_size=int(config.fontsize_var.get() * VIDEO_FONT_SCALE),
+                        color=config.color_var.get(),
+                        border_color=config.border_color_var.get(),
+                        border_size=config.border_size_var.get()
+                    )
+                    
+                    # Calculate Y position (from bottom)
+                    y_position = int((100 - config.ypos_var.get()) * video.h / 100)
+                    
+                    # Create subtitle clip
+                    txt_clip = (ImageClip(frame, transparent=True)
+                              .set_duration(segment["end"] - segment["start"])
+                              .set_start(segment["start"])
+                              .set_position(('center', y_position)))
+                    
+                    subtitle_clips.append(txt_clip)
             
             self.update_status("Generando video final...")
             self.progress_bar.set(0.8)
@@ -1205,9 +1423,12 @@ class SubtitleGenerator(ctk.CTk):
             
             self.progress_bar.set(1.0)
             self.update_status("¡Proceso completado!")
-            messagebox.showinfo("Éxito", 
-                              f"Video con subtítulos generado exitosamente:\n{output_path}\n\n"
-                              f"Archivos SRT generados en:\n" + "\n".join(srt_paths.values()))
+            
+            success_message = f"Video con subtítulos generado exitosamente:\n{output_path}"
+            if not existing_subtitles:
+                success_message += f"\n\nArchivos SRT generados en:\n" + "\n".join(srt_paths.values())
+            
+            messagebox.showinfo("Éxito", success_message)
             
         except Exception as e:
             messagebox.showerror("Error", f"Ocurrió un error: {str(e)}")
@@ -1218,7 +1439,7 @@ class SubtitleGenerator(ctk.CTk):
             self.enable_controls()
             self.progress_bar.set(0)
             self.update_status("")
-
+    
     def update_status(self, text):
         self.status_label.configure(text=text)
         self.update()
@@ -1296,10 +1517,11 @@ class SubtitleGenerator(ctk.CTk):
             # Restaurar valores
             current_config.language_var.set(config['language'])
             current_config.color_var.set(config['color'])
+            current_config.color_button.configure(fg_color=config['color'])  # Update button color
             current_config.fontsize_var.set(config['fontsize'])
             current_config.ypos_var.set(config['ypos'])
             current_config.border_color_var.set(config['border_color'])
-            current_config.border_color_button.configure(fg_color=config['border_color'])
+            current_config.border_color_button.configure(fg_color=config['border_color'])  # Update button color
             current_config.border_size_var.set(config['border_size'])
             
             # Actualizar color del botón
@@ -1382,7 +1604,6 @@ class SubtitleGenerator(ctk.CTk):
         )
         self.workflow_menu.grid(row=0, column=1, padx=5, pady=5)
         
-        # Botón para refrescar workflows
         refresh_btn = ctk.CTkButton(
             workflow_frame,
             text="↻",
@@ -1438,7 +1659,17 @@ class SubtitleGenerator(ctk.CTk):
             height=35,
             font=("Segoe UI", 12)
         )
-        self.generate_btn.grid(row=0, column=1, padx=5, pady=5)
+        self.generate_btn.grid(row=0, column=2, padx=5, pady=5)
+        
+        generate_video_button = ctk.CTkButton(
+            control_frame,
+            text="Generar video",
+            command=self.generate_video,
+            width=200,
+            height=35,
+            font=("Segoe UI", 12)
+        )
+        generate_video_button.grid(row=0, column=1, padx=5, pady=5)
         
         # Progress bar - Row 6
         progress_frame = ctk.CTkFrame(self)
@@ -1453,11 +1684,17 @@ class SubtitleGenerator(ctk.CTk):
         self.status_label = ctk.CTkLabel(self, text="")
         self.status_label.grid(row=7, column=0, padx=10, pady=5)
 
-    def close_preview(self):
-        """Close the preview window if it exists"""
-        if hasattr(self, 'preview_window') and self.preview_window.winfo_exists():
-            self.preview_window.destroy()
-            delattr(self, 'preview_window')
+    def timecode_to_seconds(self, timecode):
+        """Convierte un timecode SRT (00:00:00,000) a segundos"""
+        hours, minutes, seconds = timecode.replace(',', '.').split(':')
+        return float(hours) * 3600 + float(minutes) * 60 + float(seconds)
+    
+    def seconds_to_timecode(self, seconds):
+        """Convierte segundos a formato de timecode SRT (00:00:00,000)"""
+        hours = int(seconds // 3600)
+        minutes = int((seconds % 3600) // 60)
+        seconds = seconds % 60
+        return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}".replace('.', ',')
 
 if __name__ == "__main__":
     app = SubtitleGenerator()
