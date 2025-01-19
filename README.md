@@ -5,11 +5,11 @@
 A desktop application for generating and customizing multilingual subtitles for your videos.
 
 <p align="center">
-  <img src="guiimagen1.png" width="600" alt="Main interface"/>
+  <img src="guiimagen1.png?v=2" width="600" alt="Main interface"/>
 </p>
 
 <p align="center">
-  <img src="imagen2.png" width="600" alt="Preview"/>
+  <img src="imagen2.png?v=2" width="600" alt="Preview"/>
 </p>
 
 ## Features
