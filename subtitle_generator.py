@@ -37,7 +37,8 @@ APP_TEXTS = {
         'TEXT_SIZE_LABEL': "Tamaño: ",
         'TEXT_DURATION_LABEL': "Duración: ",
         'TEXT_BORDER_COLOR': "Color del borde",
-        'TEXT_BORDER_SIZE': "Tamaño del borde"
+        'TEXT_BORDER_SIZE': "Tamaño del borde",
+        'TEXT_GENERATE_VIDEO': "Generar video"
     },
     # English
     1: {
@@ -59,7 +60,8 @@ APP_TEXTS = {
         'TEXT_SIZE_LABEL': "Size: ",
         'TEXT_DURATION_LABEL': "Duration: ",
         'TEXT_BORDER_COLOR': "Border color",
-        'TEXT_BORDER_SIZE': "Border size"
+        'TEXT_BORDER_SIZE': "Border size",
+        'TEXT_GENERATE_VIDEO': "Generate video"
     },
     # Chinese
     2: {
@@ -81,7 +83,8 @@ APP_TEXTS = {
         'TEXT_SIZE_LABEL': "大小：",
         'TEXT_DURATION_LABEL': "持续时间：",
         'TEXT_BORDER_COLOR': "边框颜色",
-        'TEXT_BORDER_SIZE': "边框大小"
+        'TEXT_BORDER_SIZE': "边框大小",
+        'TEXT_GENERATE_VIDEO': "生成视频"
     }
 }
 
@@ -91,7 +94,7 @@ def initialize_interface_texts():
     global TEXT_LANGUAGE, TEXT_LANGUAGE_N, TEXT_COLOR, TEXT_SIZE, TEXT_Y_POSITION
     global TEXT_OPEN_PREVIEW, TEXT_GENERATE_SUBTITLES, TEXT_RESOLUTION, TEXT_UPDATE
     global TEXT_NO_VIDEO, TEXT_RESOLUTION_LABEL, TEXT_SIZE_LABEL, TEXT_DURATION_LABEL
-    global TEXT_BORDER_COLOR, TEXT_BORDER_SIZE
+    global TEXT_BORDER_COLOR, TEXT_BORDER_SIZE, TEXT_GENERATE_VIDEO
     
     selected_texts = APP_TEXTS[lenguajeSelect]
     
@@ -114,6 +117,7 @@ def initialize_interface_texts():
     TEXT_DURATION_LABEL = selected_texts['TEXT_DURATION_LABEL']
     TEXT_BORDER_COLOR = selected_texts['TEXT_BORDER_COLOR']
     TEXT_BORDER_SIZE = selected_texts['TEXT_BORDER_SIZE']
+    TEXT_GENERATE_VIDEO = selected_texts['TEXT_GENERATE_VIDEO']
 
 # Inicializar los textos al cargar el módulo
 initialize_interface_texts()
@@ -1657,7 +1661,7 @@ class SubtitleGenerator(ctk.CTk):
         
         generate_video_button = ctk.CTkButton(
             control_frame,
-            text="Generar video",
+            text=TEXT_GENERATE_VIDEO,
             command=self.generate_video,
             width=button_width,
             height=button_height,
