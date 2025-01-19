@@ -1639,37 +1639,41 @@ class SubtitleGenerator(ctk.CTk):
         # Preview and Generate controls - Row 5
         control_frame = ctk.CTkFrame(self)
         control_frame.grid(row=5, column=0, padx=10, pady=5, sticky="ew")
-        control_frame.grid_columnconfigure((0,1), weight=1)
+        control_frame.grid_columnconfigure((0,1,2), weight=1)
+        
+        button_width = 200
+        button_height = 35
+        button_font = ("Segoe UI", 12)
         
         self.preview_btn = ctk.CTkButton(
             control_frame,
             text=TEXT_OPEN_PREVIEW,
             command=self.open_preview,
-            width=200,
-            height=35,
-            font=("Segoe UI", 12)
+            width=button_width,
+            height=button_height,
+            font=button_font
         )
-        self.preview_btn.grid(row=0, column=0, padx=5, pady=5)
-        
-        self.generate_btn = ctk.CTkButton(
-            control_frame,
-            text=TEXT_GENERATE_SUBTITLES,
-            command=self.generate_subtitles,
-            width=200,
-            height=35,
-            font=("Segoe UI", 12)
-        )
-        self.generate_btn.grid(row=0, column=2, padx=5, pady=5)
+        self.preview_btn.grid(row=0, column=0, padx=5, pady=5, sticky="ew")
         
         generate_video_button = ctk.CTkButton(
             control_frame,
             text="Generar video",
             command=self.generate_video,
-            width=200,
-            height=35,
-            font=("Segoe UI", 12)
+            width=button_width,
+            height=button_height,
+            font=button_font
         )
-        generate_video_button.grid(row=0, column=1, padx=5, pady=5)
+        generate_video_button.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        
+        self.generate_btn = ctk.CTkButton(
+            control_frame,
+            text=TEXT_GENERATE_SUBTITLES,
+            command=self.generate_subtitles,
+            width=button_width,
+            height=button_height,
+            font=button_font
+        )
+        self.generate_btn.grid(row=0, column=2, padx=5, pady=5, sticky="ew")
         
         # Progress bar - Row 6
         progress_frame = ctk.CTkFrame(self)
