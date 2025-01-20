@@ -19,7 +19,9 @@ class WorkflowManager:
                 "language": config.language_var.get(),
                 "color": config.color_var.get(),
                 "font_size": config.fontsize_var.get(),
-                "y_position": config.ypos_var.get()
+                "y_position": config.ypos_var.get(),
+                "border_color": config.border_color_var.get(),
+                "border_size": config.border_size_var.get()
             }
             workflow_data["configs"].append(config_data)
         
@@ -32,7 +34,34 @@ class WorkflowManager:
         file_path = Path(self.workflows_dir) / f"{name}.json"
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                return json.load(f)
+                data = json.load(f)
+                
+            # Handle old format where configs were under "subtitle_configs"
+            if "subtitle_configs" in data:
+                configs = data["subtitle_configs"]
+            else:
+                configs = data.get("configs", [])
+                
+            # Add default values for missing fields and handle old field names
+            for config in configs:
+                # Handle old field names
+                if "fontsize" in config:
+                    config["font_size"] = config.pop("fontsize")
+                if "ypos" in config:
+                    config["y_position"] = config.pop("ypos")
+                    
+                # Add default values for missing fields
+                if "border_color" not in config:
+                    config["border_color"] = "#000000"
+                if "border_size" not in config:
+                    config["border_size"] = 2
+                if "font_size" not in config:
+                    config["font_size"] = 35
+                if "y_position" not in config:
+                    config["y_position"] = 40
+                    
+            return {"name": name, "configs": configs}
+                
         except FileNotFoundError:
             return None
     

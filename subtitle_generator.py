@@ -604,7 +604,7 @@ class PreviewWindow(ctk.CTkToplevel):
 class SubtitleConfigFrame(ctk.CTkFrame):
     def __init__(self, master, available_languages, available_colors, index, delete_callback):
         super().__init__(master)
-        self.configure(fg_color="#E0E0E0")
+        self.configure(fg_color="transparent")  # Cambiado a transparente
         self.grid(row=index, column=0, padx=20, pady=10, sticky="ew")
         self.index = index
 
@@ -618,7 +618,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         header_frame.grid(row=0, column=0, sticky="ew", pady=(5,10))
         header_frame.grid_columnconfigure(0, weight=1)
 
-        title_label = ctk.CTkLabel(header_frame, text=TEXT_LANGUAGE_N.format(index + 1), font=("Segoe UI", 12, "bold"))
+        title_label = ctk.CTkLabel(header_frame, text=TEXT_LANGUAGE_N.format(index + 1), 
+                                 font=("Segoe UI", 12, "bold"),
+                                 text_color=("black", "white"))  # Color adaptativo
         title_label.grid(row=0, column=0, sticky="w", padx=5)
 
         self.delete_btn = ctk.CTkButton(
@@ -626,7 +628,8 @@ class SubtitleConfigFrame(ctk.CTkFrame):
             text="✕",
             command=lambda: delete_callback(self.index),
             width=30,
-            height=24
+            height=24,
+            fg_color=("gray70", "gray30")  # Color adaptativo
         )
         self.delete_btn.grid(row=0, column=1)
 
@@ -636,7 +639,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         controls_frame.grid_columnconfigure(1, weight=1)
 
         # Language selection
-        language_label = ctk.CTkLabel(controls_frame, text=TEXT_LANGUAGE+":", anchor="e", width=120)
+        language_label = ctk.CTkLabel(controls_frame, text=TEXT_LANGUAGE+":", 
+                                     anchor="e", width=120,
+                                     text_color=("black", "white"))  # Color adaptativo
         language_label.grid(row=0, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.language_var = ctk.StringVar(value=available_languages[0])
@@ -650,7 +655,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         self.language_menu.grid(row=0, column=1, pady=5, sticky="ew")
 
         # Color selection
-        color_label = ctk.CTkLabel(controls_frame, text=TEXT_COLOR+":", anchor="e", width=120)
+        color_label = ctk.CTkLabel(controls_frame, text=TEXT_COLOR+":", 
+                                  anchor="e", width=120,
+                                  text_color=("black", "white"))  # Color adaptativo
         color_label.grid(row=1, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.color_var = ctk.StringVar(value="#FFFFFF")
@@ -665,7 +672,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         self.color_button.grid(row=1, column=1, pady=5, sticky="ew")
 
         # Font size
-        fontsize_label = ctk.CTkLabel(controls_frame, text=TEXT_SIZE+":", anchor="e", width=120)
+        fontsize_label = ctk.CTkLabel(controls_frame, text=TEXT_SIZE+":", 
+                                     anchor="e", width=120,
+                                     text_color=("black", "white"))  # Color adaptativo
         fontsize_label.grid(row=2, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.fontsize_var = ctk.IntVar(value=SUBTITLE_DEFAULT_FONTSIZE)
@@ -681,7 +690,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         self.fontsize_slider.grid(row=2, column=1, pady=5, sticky="ew")
 
         # Y position
-        ypos_label = ctk.CTkLabel(controls_frame, text=TEXT_Y_POSITION+":", anchor="e", width=120)
+        ypos_label = ctk.CTkLabel(controls_frame, text=TEXT_Y_POSITION+":", 
+                                 anchor="e", width=120,
+                                 text_color=("black", "white"))  # Color adaptativo
         ypos_label.grid(row=3, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.ypos_var = ctk.IntVar(value=40)
@@ -697,7 +708,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         self.ypos_slider.grid(row=3, column=1, pady=5, sticky="ew")
 
         # Border color
-        border_color_label = ctk.CTkLabel(controls_frame, text=TEXT_BORDER_COLOR+":", anchor="e", width=120)
+        border_color_label = ctk.CTkLabel(controls_frame, text=TEXT_BORDER_COLOR+":", 
+                                         anchor="e", width=120,
+                                         text_color=("black", "white"))  # Color adaptativo
         border_color_label.grid(row=4, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.border_color_var = ctk.StringVar(value="#000000")
@@ -712,7 +725,9 @@ class SubtitleConfigFrame(ctk.CTkFrame):
         self.border_color_button.grid(row=4, column=1, pady=5, sticky="ew")
 
         # Border size
-        border_size_label = ctk.CTkLabel(controls_frame, text=TEXT_BORDER_SIZE+":", anchor="e", width=120)
+        border_size_label = ctk.CTkLabel(controls_frame, text=TEXT_BORDER_SIZE+":", 
+                                        anchor="e", width=120,
+                                        text_color=("black", "white"))  # Color adaptativo
         border_size_label.grid(row=5, column=0, padx=(0,10), pady=5, sticky="e")
         
         self.border_size_var = ctk.IntVar(value=2)
@@ -1023,8 +1038,8 @@ class SubtitleGenerator(ctk.CTk):
             config_data = {
                 'language': config.language_var.get(),
                 'color': config.color_var.get(),
-                'fontsize': config.fontsize_var.get(),
-                'ypos': config.ypos_var.get(),
+                'font_size': config.fontsize_var.get(),
+                'y_position': config.ypos_var.get(),
                 'border_color': config.border_color_var.get(),
                 'border_size': config.border_size_var.get()
             }
