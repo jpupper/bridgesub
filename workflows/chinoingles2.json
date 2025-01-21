@@ -1,16 +1,20 @@
 {
     "subtitle_configs": [
         {
-            "language": "English",
-            "color": "#ffff00",
-            "font_size": 23,
-            "y_position": 11
-        },
-        {
             "language": "Chinese",
             "color": "#FFFFFF",
-            "font_size": 24,
-            "y_position": 22
+            "font_size": 47,
+            "y_position": 40,
+            "border_color": "#ff0080",
+            "border_size": 5
+        },
+        {
+            "language": "English",
+            "color": "#FFFFFF",
+            "font_size": 67,
+            "y_position": 27,
+            "border_color": "#ff0000",
+            "border_size": 4
         }
     ]
 }

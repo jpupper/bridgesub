@@ -3,16 +3,16 @@
         {
             "language": "Chinese",
             "color": "#FFFFFF",
-            "font_size": 28,
-            "y_position": 41,
-            "border_color": "#ff0000",
+            "font_size": 59,
+            "y_position": 9,
+            "border_color": "#ff0080",
             "border_size": 5
         },
         {
             "language": "English",
             "color": "#FFFFFF",
-            "font_size": 28,
-            "y_position": 53,
+            "font_size": 37,
+            "y_position": 20,
             "border_color": "#ff0000",
             "border_size": 4
         }

@@ -123,11 +123,50 @@ def initialize_interface_texts():
 initialize_interface_texts()
 
 # Global Settings
-MAIN_WINDOW_WIDTH = 500
-MAIN_WINDOW_HEIGHT = 600
+MAIN_WINDOW_WIDTH = 600
+MAIN_WINDOW_HEIGHT = 800
+PREVIEW_WINDOW_SCREEN_RATIO = 0.6
+VIDEO_FONT_SCALE = 1.5
 
-# Preview window settings (percentage of screen size)
-PREVIEW_WINDOW_SCREEN_RATIO = 0.6  # 60% del tamaño de la pantalla
+# Whisper configuration
+WHISPER_MODEL = "base"
+WHISPER_WORD_TIMESTAMPS = True
+WHISPER_LANGUAGE = None
+WHISPER_TASK = "transcribe"
+
+# Parámetros de segmentación
+WHISPER_NO_SPEECH_THRESHOLD = 0.1  # Bajado para detectar más pausas
+WHISPER_COMPRESSION_RATIO_THRESHOLD = 1.1  # Bajado para permitir más segmentos
+WHISPER_LOGPROB_THRESHOLD = -1.5  # Más permisivo con segmentos menos probables
+
+# Parámetros de calidad
+WHISPER_BEAM_SIZE = 5 # Aumentado para mejor búsqueda
+WHISPER_BEST_OF = 5    # Aumentado para considerar más opciones
+WHISPER_TEMPERATURE = (0.0, 0.2, 0.4)  # Reducido para más consistencia
+
+# Otros parámetros
+WHISPER_CONDITION_ON_PREVIOUS_TEXT = True
+WHISPER_FP16 = True
+WHISPER_PATIENCE = 1.5  # Añadido para mejor búsqueda de beam
+WHISPER_LENGTH_PENALTY = 1.0  # Neutral con la longitud
+WHISPER_SUPPRESS_TOKENS = [-1]  # Suprimir tokens especiales
+
+# Subtitle timing settings
+SUBTITLE_MIN_GAP = 0.1  # Espacio mínimo entre subtítulos (segundos)
+SUBTITLE_MAX_DURATION = 3.0  # Duración máxima de un subtítulo (segundos)
+SUBTITLE_MIN_DURATION = 0.1  # Duración mínima de un subtítulo (segundos)
+ENABLE_TIMING_POSTPROCESS = True  # Habilitar/deshabilitar post-procesamiento de tiempos
+
+# Subtitle segmentation settings
+SUBTITLE_MAX_CHARS = 50  # Máximo número de caracteres por subtítulo
+SUBTITLE_MAX_WORDS = 8   # Máximo número de palabras por subtítulo
+SUBTITLE_PUNCTUATION = '.!?,:;'  # Caracteres de puntuación para dividir frases occidentales
+SUBTITLE_FORCE_SPLIT = True  # Forzar división si se excede el máximo de palabras
+
+# Asian language settings
+ASIAN_PUNCTUATION = '。！？，：；'  # Puntuación para idiomas asiáticos
+ASIAN_LANGUAGES = {'zh', 'zh-cn', 'ja', 'ko'}  # Códigos de idiomas asiáticos
+ASIAN_CHARS_PER_SUBTITLE = 15  # Máximo de caracteres para idiomas asiáticos
 
 # Subtitle positioning and styling
 SUBTITLE_Y_MARGIN = -200  # Margen en píxeles para los subtítulos
@@ -779,6 +818,7 @@ class SubtitleGenerator(ctk.CTk):
         self.geometry(f"{MAIN_WINDOW_WIDTH}x{MAIN_WINDOW_HEIGHT}")
         self.video_path = None  # Para almacenar el path del video
         self.video_resolution = None  # Para almacenar la resolución del video
+        self.current_workflow = None  # Agregar variable para el workflow actual
         
         # Configure grid
         self.grid_columnconfigure(0, weight=1)
@@ -869,7 +909,10 @@ class SubtitleGenerator(ctk.CTk):
         
         # Refresh workflows list
         self.refresh_workflows()
-    
+        
+        # Centrar la ventana en la pantalla
+        self.center_window()
+
     def add_subtitle_config(self):
         config_frame = SubtitleConfigFrame(
             self.subtitle_container,
@@ -981,48 +1024,68 @@ class SubtitleGenerator(ctk.CTk):
     
     def on_workflow_selected(self, choice):
         if choice != "No hay workflows" and choice != "Seleccionar Workflow":
-            self.load_workflow(f"{choice}.json")
-    
-    def load_workflow(self, workflow_file):
-        try:
-            workflow_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workflows", workflow_file)
-            with open(workflow_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
+            self.current_workflow = choice  # Guardar el workflow seleccionado
+            try:
+                workflow_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workflows")
+                workflow_path = os.path.join(workflow_dir, f"{choice}.json")
+                
+                with open(workflow_path, 'r', encoding='utf-8') as f:
+                    workflow_data = json.load(f)
+                
+                # Desactivar temporalmente la actualización de la interfaz
+                self.update_idletasks()
+                
+                # Guardar las configuraciones que vamos a cargar
+                configs = workflow_data.get('configs', workflow_data.get('subtitle_configs', []))
+                
+                # Eliminar todas las configuraciones existentes
+                for config in self.subtitle_configs[:]:
+                    config.destroy()  # Destruir el widget
+                self.subtitle_configs = []  # Limpiar la lista
+                
+                # Cargar nuevas configuraciones
+                for config_data in configs:
+                    self.add_subtitle_config()  # Crear nuevo frame de subtítulo
+                    config = self.subtitle_configs[-1]  # Obtener el último config creado
+                    
+                    config.language_var.set(config_data['language'])
+                    config.color_var.set(config_data['color'])
+                    config.color_button.configure(fg_color=config_data['color'])
+                    config.fontsize_var.set(config_data.get('font_size', config_data.get('fontsize', 35)))
+                    config.ypos_var.set(config_data.get('y_position', config_data.get('ypos', 40)))
+                    config.border_color_var.set(config_data.get('border_color', '#000000'))
+                    config.border_color_button.configure(fg_color=config_data.get('border_color', '#000000'))
+                    config.border_size_var.set(config_data.get('border_size', 2))
             
-            # Limpiar configuraciones actuales
-            for config in self.subtitle_configs:
-                config.destroy()
-            self.subtitle_configs.clear()
+                # Forzar actualización de la interfaz
+                self.update_idletasks()
+                
+                # Actualizar preview si existe
+                if hasattr(self, 'preview_window'):
+                    self.preview_window.update_preview()
             
-            # Cargar configuraciones del workflow
-            for config_data in data['subtitle_configs']:
-                self.add_subtitle_config()
-                config = self.subtitle_configs[-1]
-                config.language_var.set(config_data['language'])
-                config.color_var.set(config_data['color'])
-                config.color_button.configure(fg_color=config_data['color'])  # Update button color
-                config.fontsize_var.set(config_data['font_size'])
-                config.ypos_var.set(config_data['y_position'])
-                config.border_color_var.set(config_data['border_color'])
-                config.border_color_button.configure(fg_color=config_data['border_color'])  # Update button color
-                config.border_size_var.set(config_data['border_size'])
-            
-            # Actualizar preview si existe
-            if hasattr(self, 'preview_window'):
-                self.preview_window.update_preview()
-            
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al cargar workflow: {str(e)}")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al cargar workflow: {str(e)}")
+                self.current_workflow = None  # Resetear el workflow actual si hay error
     
     def save_workflow(self):
         if not self.subtitle_configs:
             messagebox.showwarning("Advertencia", "No hay configuraciones para guardar")
             return
         
-        # Pedir nombre del workflow
-        workflow_name = simpledialog.askstring("Guardar Workflow", "Nombre del workflow:")
+        workflow_name = self.current_workflow
         if not workflow_name:
-            return
+            # Si no hay workflow seleccionado, pedir nombre nuevo
+            workflow_name = simpledialog.askstring("Guardar Workflow", "Nombre del workflow:")
+            if not workflow_name:
+                return
+        else:
+            # Si hay workflow seleccionado, preguntar si quiere sobrescribir
+            if not messagebox.askyesno("Confirmar", f"¿Desea actualizar el workflow '{workflow_name}'?"):
+                # Si dice que no, pedir nuevo nombre
+                workflow_name = simpledialog.askstring("Guardar Workflow", "Nombre del workflow:")
+                if not workflow_name:
+                    return
         
         # Crear directorio de workflows si no existe
         workflow_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "workflows")
@@ -1050,7 +1113,16 @@ class SubtitleGenerator(ctk.CTk):
             workflow_path = os.path.join(workflow_dir, f"{workflow_name}.json")
             with open(workflow_path, 'w', encoding='utf-8') as f:
                 json.dump(workflow_data, f, indent=4, ensure_ascii=False)
+            
+            # Actualizar el workflow actual si es uno nuevo
+            if workflow_name != self.current_workflow:
+                self.current_workflow = workflow_name
+            
             self.refresh_workflows()
+            # Seleccionar el workflow guardado en el dropdown
+            if hasattr(self, 'workflow_menu'):
+                self.workflow_menu.set(workflow_name)
+                
         except Exception as e:
             messagebox.showerror("Error", f"Error al guardar workflow: {str(e)}")
     
@@ -1104,11 +1176,27 @@ class SubtitleGenerator(ctk.CTk):
             print(f"Video origen: {video_path}")
             
             # Cargar el modelo de whisper
-            model = whisper.load_model("base")
+            model = whisper.load_model(WHISPER_MODEL)
             
-            # Transcribir el audio
+            # Transcribir el audio con configuraciones optimizadas
             print("Transcribiendo audio...")
-            result = model.transcribe(video_path)
+            result = model.transcribe(
+                video_path,
+                language=WHISPER_LANGUAGE,
+                task=WHISPER_TASK,
+                beam_size=WHISPER_BEAM_SIZE,
+                best_of=WHISPER_BEST_OF,
+                temperature=WHISPER_TEMPERATURE,
+                patience=WHISPER_PATIENCE,
+                length_penalty=WHISPER_LENGTH_PENALTY,
+                suppress_tokens=WHISPER_SUPPRESS_TOKENS,
+                condition_on_previous_text=WHISPER_CONDITION_ON_PREVIOUS_TEXT,
+                fp16=WHISPER_FP16,
+                compression_ratio_threshold=WHISPER_COMPRESSION_RATIO_THRESHOLD,
+                logprob_threshold=WHISPER_LOGPROB_THRESHOLD,
+                no_speech_threshold=WHISPER_NO_SPEECH_THRESHOLD,
+                word_timestamps=WHISPER_WORD_TIMESTAMPS
+            )
             detected_language = result["language"]
             print(f"Idioma detectado: {detected_language}")
             
@@ -1136,19 +1224,19 @@ class SubtitleGenerator(ctk.CTk):
                 if target_lang_code != detected_language:
                     # Traducir si es necesario
                     translator = Translator()
-                    segments = []
+                    raw_segments = []
                     for segment in result["segments"]:
                         translated = translator.translate(
                             segment["text"], 
                             dest=target_lang_code
                         ).text
-                        segments.append({
+                        raw_segments.append({
                             "text": translated,
                             "start": segment["start"],
                             "end": segment["end"]
                         })
                 else:
-                    segments = [
+                    raw_segments = [
                         {
                             "text": segment["text"],
                             "start": segment["start"],
@@ -1157,9 +1245,15 @@ class SubtitleGenerator(ctk.CTk):
                         for segment in result["segments"]
                     ]
                 
+                # Aplicar post-procesamiento de tiempos si está habilitado
+                if ENABLE_TIMING_POSTPROCESS:
+                    processed_segments = process_subtitle_timing(raw_segments, target_lang_code)
+                else:
+                    processed_segments = raw_segments
+                
                 subtitles_data.append({
                     "config": config,
-                    "segments": segments
+                    "segments": processed_segments
                 })
                 
                 # Guardar SRT
@@ -1170,7 +1264,7 @@ class SubtitleGenerator(ctk.CTk):
                 
                 srt_path = os.path.join(export_dir, f"{video_name}_{target_lang}.srt")
                 with open(srt_path, 'w', encoding='utf-8') as f:
-                    for i, segment in enumerate(segments, 1):
+                    for i, segment in enumerate(processed_segments, 1):
                         f.write(f"{i}\n")
                         f.write(f"{self.seconds_to_timecode(segment['start'])} --> {self.seconds_to_timecode(segment['end'])}\n")
                         f.write(f"{segment['text']}\n\n")
@@ -1343,8 +1437,7 @@ class SubtitleGenerator(ctk.CTk):
             for config_data in subtitles_data:
                 config = config_data["config"]
                 lang = config.language_var.get()
-                language_name = lang.split(' (')[0]
-                
+                language_name = lang.split(' (')[0]  # Remove parentheses part
                 if language_name in ['Chinese', 'Japanese', 'Korean']:
                     possible_fonts = ['MSYH.TTC', 'SIMHEI.TTF', 'SIMSUN.TTC', 'MALGUN.TTF', 'MEIRYO.TTC']
                 elif language_name in ['Arabic', 'Hebrew']:
@@ -1718,6 +1811,116 @@ class SubtitleGenerator(ctk.CTk):
         minutes = int((seconds % 3600) // 60)
         seconds = seconds % 60
         return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}".replace('.', ',')
+
+    def center_window(self):
+        """Centra la ventana en la pantalla."""
+        # Actualizar la ventana para asegurar que tiene el tamaño correcto
+        self.update_idletasks()
+        
+        # Obtener dimensiones de la pantalla
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        
+        # Calcular posición x,y para el centro
+        x = (screen_width - MAIN_WINDOW_WIDTH) // 2
+        y = (screen_height - MAIN_WINDOW_HEIGHT) // 2
+        
+        # Establecer la geometría
+        self.geometry(f"{MAIN_WINDOW_WIDTH}x{MAIN_WINDOW_HEIGHT}+{x}+{y}")
+
+def is_asian_language(lang_code):
+    """Determina si un código de idioma corresponde a un idioma asiático."""
+    return lang_code.lower() in ASIAN_LANGUAGES
+
+def process_subtitle_timing(segments, detected_language='en'):
+    """
+    Post-procesa los tiempos de los subtítulos para mejorar su sincronización.
+    Args:
+        segments: Lista de segmentos con formato {"text": str, "start": float, "end": float}
+        detected_language: Código del idioma detectado
+    Returns:
+        Lista de segmentos procesados con el mismo formato
+    """
+    processed_segments = []
+    last_end_time = 0
+    is_asian = is_asian_language(detected_language)
+    
+    for segment in segments:
+        text = segment["text"].strip()
+        if not text:  # Ignorar segmentos vacíos
+            continue
+        
+        # Procesar diferente según el idioma
+        if is_asian:
+            # Para idiomas asiáticos, dividir por puntuación asiática o por número de caracteres
+            sentences = []
+            current_text = ''
+            
+            for char in text:
+                current_text += char
+                # Dividir si encontramos puntuación asiática o alcanzamos el límite de caracteres
+                if (char in ASIAN_PUNCTUATION or 
+                    len(current_text) >= ASIAN_CHARS_PER_SUBTITLE):
+                    if current_text.strip():
+                        sentences.append(current_text.strip())
+                    current_text = ''
+            
+            # Agregar el último segmento si existe
+            if current_text.strip():
+                sentences.append(current_text.strip())
+                
+        else:
+            # Para idiomas occidentales, usar el método existente
+            sentences = []
+            current_sentence = []
+            words = text.split()
+            
+            for word in words:
+                current_sentence.append(word)
+                if (any(p in word for p in SUBTITLE_PUNCTUATION) or 
+                    len(' '.join(current_sentence)) > SUBTITLE_MAX_CHARS or 
+                    len(current_sentence) >= SUBTITLE_MAX_WORDS):
+                    sentences.append(' '.join(current_sentence))
+                    current_sentence = []
+            
+            # Agregar la última frase si quedó algo
+            if current_sentence:
+                sentences.append(' '.join(current_sentence))
+            
+            # Forzar división si es necesario
+            if SUBTITLE_FORCE_SPLIT and len(sentences) == 1 and len(sentences[0].split()) > SUBTITLE_MAX_WORDS:
+                words = sentences[0].split()
+                sentences = []
+                for i in range(0, len(words), SUBTITLE_MAX_WORDS):
+                    sentences.append(' '.join(words[i:i+SUBTITLE_MAX_WORDS]))
+        
+        # Distribuir el tiempo total entre las frases
+        if sentences:
+            total_duration = segment["end"] - segment["start"]
+            time_per_sentence = total_duration / len(sentences)
+            
+            for i, sentence in enumerate(sentences):
+                start_time = segment["start"] + (i * time_per_sentence)
+                end_time = start_time + time_per_sentence
+                
+                # Ajustar tiempos según límites
+                if i > 0:  # Asegurar espacio mínimo desde el último
+                    start_time = max(start_time, last_end_time + SUBTITLE_MIN_GAP)
+                
+                # Ajustar duración
+                duration = min(end_time - start_time, SUBTITLE_MAX_DURATION)
+                duration = max(duration, SUBTITLE_MIN_DURATION)
+                end_time = start_time + duration
+                
+                processed_segments.append({
+                    "text": sentence.strip(),
+                    "start": start_time,
+                    "end": end_time
+                })
+                
+                last_end_time = end_time
+    
+    return processed_segments
 
 if __name__ == "__main__":
     app = SubtitleGenerator()
